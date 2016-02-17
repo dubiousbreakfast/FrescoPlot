@@ -2,30 +2,36 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy
 import re
+import os
+import seaborn as sbs
 
 
 
 #class for each line at a given energy
 
 class lineobject():
-    def __init__ (self,theta,sigma,E):
+    def __init__ (self,theta,sigma,E,J,par):
         self.theta = theta
         self.sigma = sigma
         self.E = E
-    
+        self.J = J
+        self.par = par
+        
     
 
 
 #reads files in and creates lineobject for each energy.
 #outputs graphline list which is a single list containing each lineobject as a element.
+#New mods for single files like fort.201 also spin parity of the states.
+
+n = 0
 
 def readfile(filename):
     
-    graphline = []
+    #graphline = []
     theta = []
     sigma = []
     global n  #total number of partitions
-    n = 0
     for line in file(filename): 
         line = line.split()
         if line[0] == '#legend':
@@ -35,8 +41,9 @@ def readfile(filename):
             theta.append(float(line[0]))              #finds theta and sigma values for each energy    
             sigma.append(float(line[1]))
         if line[0] == 'END':
-            z = lineobject(theta,sigma,E)
-            graphline.append(z)
+            J,par = raw_input("What is the spin parity of the state?\n")
+            graphline = lineobject(theta,sigma,E,J,par)
+            #graphline.append(z)
             n = n + 1
             theta = []
             sigma = []
@@ -45,9 +52,62 @@ def readfile(filename):
      
 
 
+#funtion to do file stuff. Return a list of all input files.
+def getfiles():
+    files = []
+    drp = os.listdir('.')
+    go = True
+    while go: 
+        temp = raw_input("Input a file. cd changes directory, ls lists contents, done exits.\n")
+        if temp == 'cd':
+            os.chdir(raw_input("What's the path?\n"))
+            drp = os.listdir('.')
+        elif temp == 'ls':
+            print drp
+        elif temp == 'done':
+            go = False
+        else:
+            if temp in os.listdir('.'):
+                files.append(temp)
+            else:
+                print(temp+" ain't no list!\n")
+    return files
 
 
-graphs = readfile('fort.16')
+#Set up the plots
+def now_plot(notaplot):
+    aplot = plt.subplot()
+    aplot.plot(notaplot.theta,notaplot.sigma)
+    aplot.set_title(str(notaplot.E)+' Mev $J^\pi = $'+notaplot.J+notaplot.par)    
+    aplot.set_xlabel(r'$\theta$',fontsize = 20)
+    aplot.set_ylabel(r'$\sigma(mb)$',fontsize = 20)
+    aplot.tick_params(axis='x', labelsize=10)    
+    aplot.tick_params(axis='y', labelsize=10)
+    aplot.set_yscale('log')
+    return aplot
+
+
+    
+
+#read in files
+
+all_files = getfiles()
+
+graphs = []
+
+for i in range(len(all_files)):
+    graphs.append(readfile(all_files[i]))
+
+for i in range(len(graphs)):
+    oneplot = now_plot(graphs[i])
+    plt.savefig(graphs[i].J+graphs[i].par+ ' plot.pdf')
+    plt.draw()
+    plt.clf()
+
+
+
+
+
 
 
 plotparity = 0 
