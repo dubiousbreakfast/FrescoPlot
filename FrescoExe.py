@@ -1,11 +1,10 @@
 import os
 
 
-def filerun():
-    filename = raw_input("Name of input file? ")
+def filerun(filename):
     output = str(filename)+'.out'
     command = 'fresco' + '<' + filename + '>' + output
     os.system(command)
     
 
-filerun()
+

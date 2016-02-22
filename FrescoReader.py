@@ -33,6 +33,19 @@ def readfile(filename):
     return f
 
 
+#Writes a file from file list formatting is wonky but appears to be good enough for fresco to
+#use file
+
+def writefile(filelist,output):
+    f = open(output,'w')
+    for ele in filelist:
+        line = " ".join(ele)
+        f.write(line+"\n")
+    f.close()
+
+
+
+
 #If readfile was called on fort.200 file this function gets lab energy and differential cross sections
 #Returns a instance of the lineobject class form FrescoClasses.
 def readfres200(filelist):
@@ -60,5 +73,8 @@ def readfres200(filelist):
     return graphline
 
 
-    
 
+#Takes file list and returns an instance of the inputfile class.
+
+    
+#def readfresinput(filelist):

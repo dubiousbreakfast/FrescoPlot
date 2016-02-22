@@ -18,3 +18,20 @@ class lineobject():
             for i in range(len(self.sigma)): 
                 self.scaled_sigma.append(self.theta[i]/self.scale)
 
+
+
+#Class for input file 
+
+class inputfile():
+
+    def parameters(para):
+        pass
+    def partition():
+        pass
+    
+    def states():
+        pass
+
+    def pots():
+        pass
+    
