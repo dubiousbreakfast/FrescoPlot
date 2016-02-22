@@ -1,78 +1,64 @@
-#We look to take the output of the fort.3 and fort.16 files 
-#and put them in an easy to read file for plotting. The file 
-#called FresDat.dat
+import os
+import FrescoClasses as fc
+from re import findall 
+
+#funtion to do file stuff. Return a list of all input files.
+def getfiles():
+    files = []
+    drp = os.listdir('.')
+    go = True
+    while go: 
+        temp = raw_input("Input a file. cd changes directory, ls lists contents, done exits.\n")
+        if temp == 'cd':
+            os.chdir(raw_input("What's the path?\n"))
+            drp = os.listdir('.')
+        elif temp == 'ls':
+            print drp
+        elif temp == 'done':
+            go = False
+        else:
+            if temp in os.listdir('.'):
+                files.append(temp)
+            else:
+                print(temp+" ain't no file!\n")
+    return files
 
 
-
-
-#Spits out a nested list with each sublist being 1 line in the input file
-def readin(thefile):
-    total = []
-    for line in file(thefile):
+#the generic file read funciton. Goes line by line returns nested list of each line in file
+def readfile(filename):
+    f = []
+    for line in file(filename):
         line = line.split()
-        total.append(line)
-    return total
+        f.append(line)
+    return f
 
 
-
-
-#class for the partition object
-
-
-class Partition():
-
-    def __init__(self,data,namep,namet):
-        self.data = data
-        self.namep = namep
-        self.namet = namet
-
-
-#This class takes lists and tears them down according to rules for each file of interest
-
-class FresFil():
-
-    def __init__(self,list1):
-        self.data = list1
-
-
-    #Method for fort.3 file type which creates a list for each partition
-    #and is addressed to a key in a dictionary
-    def partitions(self):
-        parts = {}
-        read = False
-        part = []
-        n = 0
-        for el in list(self.data):
-            #These if statements pick out the partitions
-            #The order is dictated by the layout of the fort.3 file
-            
-            if el == ['&STATES']:
-                read = True
-            
-            if el == ['/']:
-                read = False
-            
-            if read:
-                part.append(el)
-                parts.update({n:part})
-
-            if el == ['&PARTITION']:
-                read = True
-                n = n + 1
-                print n 
-                part = [] 
-            
-        return parts
+#If readfile was called on fort.200 file this function gets lab energy and differential cross sections
+#Returns a instance of the lineobject class form FrescoClasses.
+def readfres200(filelist):
+    
+    #Initialize lists for angular information
+    theta = []
+    sigma = []
+    for ele in filelist:
+        #This picks out the cross section at each angle.
+        if len(ele) == 2 and ele[0] != '@legend' and ele[0] != '@subtitle':
+            theta.append(float(ele[0]))                  
+            sigma.append(float(ele[1]))
         
+        #looks for lab energy. Let this haunt your dreams until you think of a better way.
+        elif ele[0] == '@legend' or ele[0] == '#legend':
+            if 'energy' in ele:
+                energy = findall('[0-9.0]+',ele[6])
+                E = float(energy[0])
+
+        # End of file create the lineobject ask user for state information
+        elif ele[0] == 'END':
+            J,par = raw_input("What is the spin parity of the state?\n")
+            graphline = fc.lineobject(theta,sigma,E,J,par)
             
-                
-                    
-                    
-    #Once the user has selected the desired partition and either projectile or target states
-    #this method picks them out and returns a list of spins
-    #def states(self,part,torp):
-        
+    return graphline
 
 
-
+    
 
