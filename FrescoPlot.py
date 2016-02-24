@@ -12,6 +12,7 @@ import seaborn as sbs
 #Set up the plots
 def now_plot(notaplot):
     aplot = plt.subplot()
+    notaplot.angle_range(float(raw_input("Stop plotting at which angle? ")))
     aplot.plot(notaplot.theta,notaplot.sigma)
     aplot.set_title(str(notaplot.E)+' Mev $J^\pi = $'+notaplot.J+notaplot.par)    
     aplot.set_xlabel(r'$\theta$',fontsize = 20)
@@ -43,7 +44,7 @@ for i in range(len(graphs)):
 
 
 
-
+plt.show()
 
 
 
