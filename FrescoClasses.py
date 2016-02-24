@@ -18,20 +18,27 @@ class lineobject():
             for i in range(len(self.sigma)): 
                 self.scaled_sigma.append(self.theta[i]/self.scale)
 
-
-
-#Class for input file 
-
-class inputfile():
-
-    def parameters(para):
-        pass
-    def partition():
-        pass
+    #Picks out list index for a given angle
+    def find_angle(self,angle):
+        if angle in self.theta and angle != 180:
+            return self.theta.index(angle)
+        
+        elif angle == 180:
+            return (len(self.theta)-1)
+            
+        else:
+            print "Angle not found!"
+            return (len(self.theta)-1)
     
-    def states():
-        pass
-
-    def pots():
-        pass
-    
+    #Deletes elements of cross section and angle lists that are outside a given angle
+    def angle_range(self,ran):
+        #Make it exclusive on the bottom if it is not
+        index = self.find_angle(ran)
+        if index != (len(self.theta)-1):
+            index = index + 1
+        #that lack of enclusive slicing...ugh
+        del self.theta[index:-1]
+        del self.theta[-1]
+        del self.sigma[index:-1]
+        del self.sigma[-1]    
+        
