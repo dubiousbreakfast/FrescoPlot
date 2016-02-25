@@ -3,12 +3,12 @@ import FrescoClasses as fc
 from re import findall 
 
 #funtion to do file stuff. Return a list of all input files.
-def getfiles():
+def getfiles(filetype):
     files = []
     drp = os.listdir('.')
     go = True
     while go: 
-        temp = raw_input("Input a file. cd changes directory, ls lists contents, done exits.\n")
+        temp = raw_input("Input a "+str(filetype)+" file cd changes directory, ls lists contents, done exits.\n")
         if temp == 'cd':
             os.chdir(raw_input("What's the path?\n"))
             drp = os.listdir('.')
@@ -72,6 +72,17 @@ def readfres200(filelist):
             
     return graphline
 
+
+
+#This is used for raw data files assumes two columns
+def read_data(filelist):
+    theta = []
+    sigma = []
+    for ele in filelist:
+        theta.append(float(ele[0]))                  
+        sigma.append(float(ele[1]))
+    graphline = fc.lineobject(theta,sigma)
+    return graphline
 
 
 #Takes file list and returns an instance of the inputfile class.
