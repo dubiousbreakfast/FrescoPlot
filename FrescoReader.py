@@ -81,7 +81,7 @@ def read_data(filelist):
     for ele in filelist:
         theta.append(float(ele[0]))                  
         sigma.append(float(ele[1]))
-    graphline = fc.lineobject(theta,sigma)
+    graphline = fc.dataobject(theta,sigma)
     return graphline
 
 

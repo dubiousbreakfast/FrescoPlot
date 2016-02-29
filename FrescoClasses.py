@@ -1,41 +1,62 @@
+############################################
+#########Classes For Plotting###############
+############################################
+
+#new generic class for angular distrubutions
+class Angles():
+    def __init__(self,theta,sigma):
+        self.theta = theta
+        self.sigma = sigma
+
+
 
 #This is the tenenative class for graphs. It includes scaling for elastic fits.
-class lineobject():
-    def __init__ (self,theta,sigma,E=None,J=None,par=None):
+class lineobject(Angles):
+    def __init__ (self,theta,sigma,E,J,par):
         self.E = E
         self.J = J
         self.par = par
-        self.theta = theta
-        self.sigma = sigma
-        
+        Angles.__init__(self,theta,sigma)
 
     def scale_it(self,value,angle):
         index = self.theta.index(angle)
         scale = value/self.sigma[index]
         if scale != 1.0:
-            self.sigma = map(lambda x:x*scale,self.sigma)
-
-    #Picks out list index for a given angle
-    def find_angle(self,angle):
-        if angle in self.theta and angle != 180:
-            return self.theta.index(angle)
+            #Added slice overwrite to be a bit more careful with list
+            self.sigma[:] = [x*scale for x in self.sigma]
         
-        elif angle == 180:
-            return (len(self.theta)-1)
             
-        else:
-            print "Angle not found!"
-            return (len(self.theta)-1)
-    
-    #Deletes elements of cross section and angle lists that are outside a given angle
-    def angle_range(self,ran):
-        #Make it exclusive on the bottom if it is not
-        index = self.find_angle(ran)
-        if index != (len(self.theta)-1):
-            index = index + 1
-        #that lack of enclusive slicing...ugh
-        del self.theta[index:-1]
-        del self.theta[-1]
-        del self.sigma[index:-1]
-        del self.sigma[-1]    
+    #Picks out list index for a given angle.
+    def find_angle(self,angle):
+        if angle in self.theta:
+            return self.theta.index(angle) 
         
+        else:
+            new_angle = raw_input('Angle not found try again! ')
+            find_angle(new_angle)
+    
+    #Resizes cross section and angle lists that are outside a given angle
+    def angle_range(self,ran):
+        #I think I made this better.
+        index = self.find_angle(ran)
+        self.theta[:] = [x for x in self.theta if self.theta.index(x) <= index]
+        self.sigma[:] = [x for x in self.sigma if self.sigma.index(x) <= index]
+                    
+        
+#new subclass for experimental data. Expasions will include error bars and the like.
+
+class dataobject(Angles):
+     def __init__(self,theta,sigma):
+         Angles.__init__(self,theta,sigma)
+
+
+
+
+
+#################################################
+###########Classes For Analysis##################
+#################################################
+
+# class Partition():
+    
+#     def 

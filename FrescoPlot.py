@@ -8,11 +8,19 @@ import seaborn as sbs
      
 
 
-
 #Set up the plots
-def now_plot(notaplot):
+def now_plot(notaplot,data=None):
     aplot = plt.subplot()
-    notaplot.angle_range(float(raw_input("Stop plotting at which angle? ")))
+    notaplot.angle_range(float(raw_input("Stop plotting at which angle? \n")))
+    if data:
+        scalebool = raw_input("Scale to data point y or n? \n")
+        if scalebool == 'y':
+            for i,j in enumerate(data.theta):
+                print '{0} {1}'.format(j,data.sigma[i])
+            scale_angle = int(raw_input("Scale angle(integer value)?"))
+            scale_value = float(raw_input("Scale value?"))
+            notaplot.scale_it(scale_value,scale_angle)
+        aplot.plot(data.theta,data.sigma,'g^')
     aplot.plot(notaplot.theta,notaplot.sigma)
     aplot.set_title(str(notaplot.E)+' Mev $J^\pi = $'+notaplot.J+notaplot.par)    
     aplot.set_xlabel(r'$\theta$',fontsize = 20)
@@ -26,25 +34,37 @@ def now_plot(notaplot):
     
 
 #read in files
-
-all_files = fr.getfiles()
+#Still have to enter data in same order as graphs right now
+all_files = fr.getfiles('fort.200')
+all_data = fr.getfiles('data')
 graphs = []
+data_graphs = []
+
+graphs[:] = [fr.readfres200(fr.readfile(x)) for x in all_files]
+data_graphs[:] = [fr.read_data(fr.readfile(x)) for x in all_data]
 
 
-#create all graph objects
-for i in range(len(all_files)):
-    graphs.append(fr.readfres200(fr.readfile(all_files[i])))
-    
-
-for i in range(len(graphs)):
-    oneplot = now_plot(graphs[i])
-    plt.savefig(graphs[i].J+graphs[i].par+ ' plot.pdf')
+for i,j in enumerate(graphs):
+    try:
+        oneplot = now_plot(j,data_graphs[i])
+    except IndexError:
+        oneplot = now_plot(j)
+    plt.savefig(j.J+j.par+' plot.pdf')
     plt.draw()
     plt.clf()
 
+    
 
 
-plt.show()
+# #for i in range(len(graphs)):
+#     if i <= len(data_graphs):
+#         oneplot = now_plot(graphs[i],data_graphs[i])
+#     else:
+#         oneplot = now_plot(graphs[i])
+
+
+
+
 
 
 
@@ -83,26 +103,26 @@ plt.show()
 #     if scale == 1: f[x].set_yscale('log')	
 
         
-#plt.errorbar(expt,exps,xerr = 5,fmt = 'ro',lw=2)
+# plt.errorbar(expt,exps,xerr = 5,fmt = 'ro',lw=2)
 
-#plt.savefig('multi_plot_test.pdf')
-#plt.draw()
-#plt.show() 
-
-
+# plt.savefig('multi_plot_test.pdf')
+# plt.draw()
+# plt.show() 
 
 
-#The rest of these lines are for labeling of states on the plot with arrows
-#At this point they are not used. 
 
 
-#plt.ylim(0,2)
+# The rest of these lines are for labeling of states on the plot with arrows
+# At this point they are not used. 
 
 
-#plt.annotate('',xy=(40, 10E-08),xytext=(40, 0.2177E-05),
-                #arrowprops=dict(facecolor='black'))
-                #horizontalalignment='down', verticalalignment='bottom',
-                #)
-#plt.annotate('0+',xy=(20,.000001),fontsize = 20,weight = 'bold')
-#plt.annotate('3-',xy=(30,.0001),fontsize = 20,weight = 'bold')
-#plt.annotate('2+',xy=(50,.00001),fontsize = 20,weight = 'bold')
+# plt.ylim(0,2)
+
+
+# plt.annotate('',xy=(40, 10E-08),xytext=(40, 0.2177E-05),
+#                 arrowprops=dict(facecolor='black'))
+#                 horizontalalignment='down', verticalalignment='bottom',
+#                 )
+# plt.annotate('0+',xy=(20,.000001),fontsize = 20,weight = 'bold')
+# plt.annotate('3-',xy=(30,.0001),fontsize = 20,weight = 'bold')
+# plt.annotate('2+',xy=(50,.00001),fontsize = 20,weight = 'bold')
