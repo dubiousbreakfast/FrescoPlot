@@ -1,3 +1,6 @@
+import re
+
+
 ############################################
 #########Classes For Plotting###############
 ############################################
@@ -37,7 +40,6 @@ class lineobject(Angles):
     
     #Resizes cross section and angle lists that are outside a given angle
     def angle_range(self,ran):
-        #I think I made this better.
         index = self.find_angle(ran)
         self.theta[:] = [x for x in self.theta if self.theta.index(x) <= index]
         self.sigma[:] = [x for x in self.sigma if self.sigma.index(x) <= index]
@@ -57,6 +59,37 @@ class dataobject(Angles):
 ###########Classes For Analysis##################
 #################################################
 
-# class Partition():
+
+class frescoinput():
     
-#     def 
+    #method to find a given variable in a list exceptions include elab,nlab,jbord
+    #,and jump. Gives a list with original position as first element
+    def find_var(self,dat,var):
+        for place,string in enumerate(dat):
+            if re.match(str(var),string):
+                found = [place,string]
+                return found
+                
+    
+    #Given element of a list find value change value return optional third
+    #if you don't want deliminated by =
+    #Expects output from find_var
+    def change_value(self,var,new_val,string='='):
+        splitlist = re.split(string,var[1])
+        splitlist[1] = str(new_val)
+        var[1] = splitlist[0]+string+splitlist[1]
+        return var
+        
+    #method to put varlist back in its place without screwing up
+    #formatting hopefully. Takes same format list as change_value and find_var returns
+    def var_repack(self,block,var):
+        del block[var[0]]
+        block.insert(var[0],var[1])
+        return block
+    
+
+    #Function that allows a sensitivity study of a given variable over a given range
+    def sensitivity(var,values):
+        pass
+
+    

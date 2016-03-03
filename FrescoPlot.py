@@ -12,6 +12,7 @@ import seaborn as sbs
 def now_plot(notaplot,data=None):
     aplot = plt.subplot()
     notaplot.angle_range(float(raw_input("Stop plotting at which angle? \n")))
+    #Everything to do with data so scaling+plotting right now
     if data:
         scalebool = raw_input("Scale to data point y or n? \n")
         if scalebool == 'y':
@@ -22,6 +23,7 @@ def now_plot(notaplot,data=None):
             notaplot.scale_it(scale_value,scale_angle)
         aplot.plot(data.theta,data.sigma,'g^')
     aplot.plot(notaplot.theta,notaplot.sigma)
+    #Finish setting up plots
     aplot.set_title(str(notaplot.E)+' Mev $J^\pi = $'+notaplot.J+notaplot.par)    
     aplot.set_xlabel(r'$\theta$',fontsize = 20)
     aplot.set_ylabel(r'$\sigma(mb)$',fontsize = 20)
@@ -40,10 +42,12 @@ all_data = fr.getfiles('data')
 graphs = []
 data_graphs = []
 
+#set up graph objects
 graphs[:] = [fr.readfres200(fr.readfile(x)) for x in all_files]
 data_graphs[:] = [fr.read_data(fr.readfile(x)) for x in all_data]
 
 
+#Now plot them all
 for i,j in enumerate(graphs):
     try:
         oneplot = now_plot(j,data_graphs[i])
