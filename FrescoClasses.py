@@ -1,5 +1,5 @@
 import re
-
+import FrescoExe as fe
 
 ############################################
 #########Classes For Plotting###############
@@ -60,8 +60,11 @@ class dataobject(Angles):
 #################################################
 
 
+#generic class for changing inputs in fresco file. Note!!!! All of these want a single line
+#nested lists will break the crap out of it!!!!
 class frescoinput():
     
+
     #method to find a given variable in a list exceptions include elab,nlab,jbord
     #,and jump. Gives a list with original position as first element
     def find_var(self,dat,var):
@@ -77,19 +80,51 @@ class frescoinput():
     def change_value(self,var,new_val,string='='):
         splitlist = re.split(string,var[1])
         splitlist[1] = str(new_val)
-        var[1] = splitlist[0]+string+splitlist[1]
-        return var
+        newvar = splitlist[0]+string+splitlist[1]
+        return [var[0],newvar]
         
     #method to put varlist back in its place without screwing up
     #formatting hopefully. Takes same format list as change_value and find_var returns
-    def var_repack(self,block,var):
-        del block[var[0]]
-        block.insert(var[0],var[1])
-        return block
+    def var_repack(self,dat,var):
+        #make sure we copy list not jsut namespace
+        new_dat = list(dat)
+        del new_dat[var[0]]
+        new_dat.insert(var[0],var[1])
+        return new_dat
     
 
     #Function that allows a sensitivity study of a given variable over a given range
-    def sensitivity(var,values):
-        pass
+    def sensitivity(self,dat,var,values):
+        temp = self.find_var(dat,var)
+        temp_list = [self.change_value(temp,ele) for ele in values]
+        new_list = [self.var_repack(dat,ele) for ele in temp_list]
+        return new_list
+        
 
-    
+
+#This is the subclass for the global parameters in fresco. It takes the file list
+#, picks out the variables, and sets the stage for the sensitivity function of frescoinput 
+class Parameters(frescoinput):
+    pass
+
+
+
+
+
+
+
+
+
+
+
+
+class States(frescoinput):
+    pass
+
+
+class Pots(frescoinput):
+    pass
+
+
+class Coupling(frescoinput):
+    pass
