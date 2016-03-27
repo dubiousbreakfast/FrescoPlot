@@ -11,7 +11,6 @@ import seaborn as sbs
 #Set up the plots
 def now_plot(notaplot,data=None):
     aplot = plt.subplot()
-    notaplot.angle_range(float(raw_input("Stop plotting at which angle? \n")))
     #Everything to do with data so scaling+plotting right now
     if data:
         scalebool = raw_input("Scale to data point y or n? \n")
@@ -22,7 +21,8 @@ def now_plot(notaplot,data=None):
             scale_value = float(raw_input("Scale value?"))
             notaplot.scale_it(scale_value,scale_angle)
         aplot.plot(data.theta,data.sigma,'g^')
-    aplot.plot(notaplot.theta,notaplot.sigma)
+    x,y = notaplot.angle_range(float(raw_input("Stop plotting at which angle? \n")))
+    aplot.plot(x,y)
     #Finish setting up plots
     aplot.set_title(str(notaplot.E)+' Mev $J^\pi = $'+notaplot.J+notaplot.par)    
     aplot.set_xlabel(r'$\theta$',fontsize = 20)

@@ -1,5 +1,6 @@
 import re
 import FrescoExe as fe
+import os
 
 ############################################
 #########Classes For Plotting###############
@@ -35,14 +36,15 @@ class lineobject(Angles):
             return self.theta.index(angle) 
         
         else:
-            new_angle = raw_input('Angle not found try again! ')
-            find_angle(new_angle)
+            angle = raw_input('Angle not found try again! \n')
+            self.find_angle(angle)
     
     #Resizes cross section and angle lists that are outside a given angle
     def angle_range(self,ran):
         index = self.find_angle(ran)
-        self.theta[:] = [x for x in self.theta if self.theta.index(x) <= index]
-        self.sigma[:] = [x for x in self.sigma if self.sigma.index(x) <= index]
+        return ([j for i,j in enumerate(self.theta) if i <= index],
+                [j for i,j in enumerate(self.sigma) if i <= index])
+        
                     
         
 #new subclass for experimental data. Expasions will include error bars and the like.
@@ -60,71 +62,58 @@ class dataobject(Angles):
 #################################################
 
 
-#generic class for changing inputs in fresco file. Note!!!! All of these want a single line
-#nested lists will break the crap out of it!!!!
+#generic class for changing inputs in fresco file. 
+
 class frescoinput():
-    
 
-    #method to find a given variable in a list exceptions include elab,nlab,jbord
-    #,and jump. Gives a list with original position as first element
-    def find_var(self,dat,var):
-        for place,string in enumerate(dat):
-            if re.match(str(var),string):
-                found = [place,string]
-                return found
-                
-    
-    #Given element of a list find value change value return optional third
-    #if you don't want deliminated by =
-    #Expects output from find_var
-    def change_value(self,var,new_val,string='='):
-        splitlist = re.split(string,var[1])
-        splitlist[1] = str(new_val)
-        newvar = splitlist[0]+string+splitlist[1]
-        return [var[0],newvar]
+    def __init__(self,thefile):
         
-    #method to put varlist back in its place without screwing up
-    #formatting hopefully. Takes same format list as change_value and find_var returns
-    def var_repack(self,dat,var):
-        #make sure we copy list not jsut namespace
-        new_dat = list(dat)
-        del new_dat[var[0]]
-        new_dat.insert(var[0],var[1])
-        return new_dat
-    
+        self.fresco = []
+        
+        with open(thefile,'r') as f:
+            for line in f:
+                self.fresco.append(line)
 
-    #Function that allows a sensitivity study of a given variable over a given range
-    def sensitivity(self,dat,var,values):
-        temp = self.find_var(dat,var)
-        temp_list = [self.change_value(temp,ele) for ele in values]
-        new_list = [self.var_repack(dat,ele) for ele in temp_list]
-        return new_list
+
+
+    def write(self,filename,lines):
+        with open(filename,'w') as f:
+            for line in lines:
+                f.write(line)
+
+   #Changes a value in the given string            
+    def change_value(self,var,val,string):
+        old_string = re.search(str(var)+'\S+',string).group()
+        new_string = str(var)+'='+str(val)
+        return (old_string,new_string)
         
 
+    #This is really only set up for the parameters list so far.
+    #Does appear to work with elab, so that is cool.
+    def senstivity(self,var,values):
+        try:
+            os.mkdir(str(var)+'_sensitivity')
+        except OSError: 
+            print 'You have probably already done this study...'
+            
+        os.chdir(str(var)+'_sensitivity')
+        
+        for ele in values:
+            new_lines = []
+            name = str(var)+'='+str(ele)
+            for line in self.fresco:
+                if str(var) in line:
+                    old_string,new_string = self.change_value(var,ele,line)
+                    line.replace(old_string,new_string)
+                new_lines.append(line)
+            self.write(name,new_lines)
+            fe.filerun(name)
+            old_names = os.listdir('.')
+            old_names[:] = [ele for ele in old_names if re.search('fort.2\d{2}',ele)]
+            new_names = [name+'.'+(re.search('\d{3}',ele)).group() for ele in old_names]
+            for i,j in zip(old_names,new_names):
+                os.rename(i,j)
+        os.chdir('..')
+        
 
-#This is the subclass for the global parameters in fresco. It takes the file list
-#, picks out the variables, and sets the stage for the sensitivity function of frescoinput 
-class Parameters(frescoinput):
-    pass
-
-
-
-
-
-
-
-
-
-
-
-
-class States(frescoinput):
-    pass
-
-
-class Pots(frescoinput):
-    pass
-
-
-class Coupling(frescoinput):
-    pass
+    
