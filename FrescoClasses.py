@@ -63,6 +63,7 @@ class dataobject(Angles):
 
 
 #generic class for changing inputs in fresco file. 
+#Note this only works for single elab input 
 
 class frescoinput():
 
@@ -81,7 +82,7 @@ class frescoinput():
             for line in lines:
                 f.write(line)
 
-   #Changes a value in the given string            
+   #Changes a value for a given variable in a string            
     def change_value(self,var,val,string):
         old_string = re.search(str(var)+'\S+',string).group()
         new_string = str(var)+'='+str(val)
@@ -116,4 +117,31 @@ class frescoinput():
         os.chdir('..')
         
 
-    
+    #dE has units of energy. 
+    def yields(self,dE):
+        
+        new_lines = []
+        
+        for line in self.fresco:
+                if 'elab' in line:
+                    old_string,new_string = self.change_value('elab',None,line)
+                    name = old_string + '_yield'
+                    temp = re.split('=',old_string)
+                    temp[-1] = str(float(temp[-1]) - (.5*float(dE)))
+                    new_string = temp[0]+'='+temp[-1]
+                    line.replace(old_string,new_string)
+                new_lines.append(line)
+        self.write(name,new_lines)
+        
+        try:
+            os.mkdir(name)
+        except OSError: 
+            print 'You have probably already done this study...'
+            
+        os.chdir(name)
+        
+        fe.filerun(name)
+        
+        os.chdir('..')
+        
+        
