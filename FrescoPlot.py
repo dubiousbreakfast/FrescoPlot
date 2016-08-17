@@ -1,7 +1,6 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy
-import FrescoFunctions as ff
 import os
 import seaborn as sbs
 
@@ -9,53 +8,71 @@ import seaborn as sbs
 
 
 class CrossSectionPlot():
-    
-    
+
+
     def __init__(self,lines,data=None):
         #List that contains lineobjects
         self.lines = lines
         self.data = data
-        
-        
+
+
         #Initialize the plot
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
-        
+
     #Reads in data from a lineobject    
-    def scale(self):
-        for i,j in enumerate(self.data.theta):
-            print '{0} {1}'.format(j,data.sigma[i])
-        scale_angle = raw_input("Scale angle(Ex. 1, 1.5, etc.)?")
-        scale_value = float(raw_input("Scale value?"))
-        for line in self.lines:
-            line.scale_it(scale_value,scale_angle)
-            
-        
+    def scale(self,factor=None):
+        if factor:
+            for line in self.lines:
+                line.scale_it(factor,0,True)
+        else:
+            for i,j in enumerate(self.data.theta):
+                print '{0} {1}'.format(j,self.data.sigma[i])
+            scale_angle = float(raw_input("Scale angle(Ex. 1, 1.5, etc.)?"))
+            scale_value = float(raw_input("Scale value?"))
+            for line in self.lines:
+                line.scale_it(scale_value,scale_angle)
+
+
     #method for labeling fits by J^Pi
     def label(self):
         pass
-        
+
     #draw the plot and set prameters. Saving and titles will be done through widget for now
     def plot(self,angle=None):
         wid = 1.3
         if self.data:
-            self.ax.errorbar(self.data.theta,self.data.sigma,yerr=self.data.yerr,xerr=self.data.xerr,lw=wid)
-        
+            # if self.data.yerr and self.data.xerr:
+            #     self.ax.errorbar(self.data.theta,self.data.sigma,yerr=self.data.yerr,xerr=self.data.xerr,lw=wid)
+            # else:
+            self.ax.plot(self.data.theta,self.data.sigma,'ro')
         for line in self.lines:
             if angle:
                 x,y = line.angle_range(float(angle))
             else:    
                 x,y = line.theta,line.sigma
             self.ax.plot(x,y)
-            
+
         self.ax.set_xlabel(r'$\theta$',fontsize = 20)
         self.ax.set_ylabel(r'$\sigma(mb)$',fontsize = 20)
         self.ax.tick_params(axis='x', labelsize=10)    
         self.ax.tick_params(axis='y', labelsize=10)
         self.ax.set_yscale('log')
-            
+
         self.fig.show()
-    
+
+
+
+#function to quickly plot a fort.20* file
+def simple_plot(filename):
+    line = fc.read_cross(filename)
+    pass
+
+
+
+
+
+
      
 
 
@@ -106,13 +123,13 @@ class CrossSectionPlot():
 
 
 
-# #Now plot them all
+#Now plot them all
 # for i,j in enumerate(graphs):
 #     try:
 #         oneplot = now_plot(j,None,data_graphs[i])
 #     except IndexError:
 #         oneplot = now_plot(j)
-    
+
     
 
 

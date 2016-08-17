@@ -1,88 +1,91 @@
+from scipy.optimize import root
 import numpy as np
 import re
-import FrescoExe as fe
 import os
 
 ############################################
-#########Classes For Reading################
+###############Functions####################
 ############################################
 
-class FrescoRead():
-    
-    def __init__(self):
-        self.home = os.getcwd()
 
-    def create_file_list(self,afile):
-        f = []
-        for line in file(afile):
+def filerun(filename):
+    output = str(filename)+'.out'
+    command = 'fresco' + '<' + filename + '>' + output
+    os.system(command)
+
+
+def create_file_list(afile):
+    f = []
+    with open(afile,'r') as g: 
+        for line in g:
             line = line.split()
             f.append(line)
-        return f
+    return f
 
     
-    def getfile(self):
-        drp = os.listdir('.')
-        go = True
-        while go: 
-            temp = raw_input("Input a file cd changes directory and ls lists contents.\n")
-            if temp == 'cd':
-                os.chdir(raw_input("What's the path?\n"))
-                drp = os.listdir('.')
-            elif temp == 'ls':
-                print drp
-            elif temp == 'fuck':
+def getfile():
+    drp = os.listdir('.')
+    go = True
+    while go: 
+        temp = raw_input("Input a file cd changes directory and ls lists contents.\n")
+        if temp == 'cd':
+            os.chdir(raw_input("What's the path?\n"))
+            drp = os.listdir('.')
+        elif temp == 'ls':
+            print drp
+        elif temp == 'fuck':
+            go = False
+            
+        else:
+            if temp in os.listdir('.'):
+                afile = temp
                 go = False
-            
             else:
-                if temp in os.listdir('.'):
-                    afile = temp
-                    go = False
-                else:
-                    print(temp+" ain't no file!\n")
-        return afile
+                print(temp+" ain't no file!\n")
+    return afile
         
-    
-    def read_cross(self,filename):
-        filelist = self.create_file_list(filename)
-        #Initialize lists for angular information
-        theta = []
-        sigma = []
-        for ele in filelist:
-            #This picks out the cross section at each angle.
-            if len(ele) == 2 and ele[0] != '@legend' and ele[0] != '@subtitle':
-                theta.append(float(ele[0]))                  
-                sigma.append(float(ele[1]))
-        
-            #looks for lab energy. 
-            elif ele[0] == '@legend' or ele[0] == '#legend':
-                if 'energy' in ele:
-                    energy = re.findall('[0-9.0]+',ele[6])
-                    E = float(energy[0])
-
-            # End of file create the lineobject ask user for state information 
-            elif ele[0] == 'END':
-                jpi = raw_input("What is the spin parity of the state(Ex. 1.5+,1- etc.)?\n")
-                J=''
-                for s in re.findall('[^\+\-]',jpi):
-                    J += s
-                par = re.findall('[\+\-]',jpi)[0]
-                graphline = lineobject(theta,sigma,E,J,par)
-            
-        return graphline
-
-
-    
-    def read_data(self,filelist):
-        filelist = self.create_file_list(filename)
-        theta = []
-        sigma = []
-        for ele in filelist:
+#Reads fort.200 files returns lineobject    
+def read_cross(filename):
+    filelist = create_file_list(filename)
+    #Initialize lists for angular information
+    theta = []
+    sigma = []
+    for ele in filelist:
+        #This picks out the cross section at each angle.
+        if len(ele) == 2 and ele[0] != '@legend' and ele[0] != '@subtitle':
             theta.append(float(ele[0]))                  
             sigma.append(float(ele[1]))
-        graphline = dataobject(theta,sigma)
-        return graphline
 
+        #looks for lab energy. 
+        elif ele[0] == '@legend' or ele[0] == '#legend':
+            if 'energy' in ele:
+                energy = re.findall('[0-9.0]+',ele[6])
+                E = float(energy[0])
 
+        # End of file create the lineobject ask user for state information 
+        elif ele[0] == 'END':
+            jpi = raw_input("What is the spin parity of the state(Ex. 1.5+,1- etc.)?\n")
+            J=''
+            for s in re.findall('[^\+\-]',jpi):
+                J += s
+            par = re.findall('[\+\-]',jpi)[0]
+            graphline = lineobject(theta,sigma,E,J,par)
+
+    return graphline
+
+#Reads two col. data files returns dataobject
+def read_data(filename):
+    filelist = create_file_list(filename)
+    theta = []
+    sigma = []
+    for ele in filelist:
+        theta.append(float(ele[0]))                  
+        sigma.append(float(ele[1]))
+    graphline = dataobject(theta,sigma)
+    return graphline
+
+#Reads fort 17 file and returns a wavefunction class object to plot
+#def read_wavefunction(filename):
 
 
 
@@ -110,14 +113,17 @@ class lineobject(Angles):
         self.J = J
         self.par = par
         Angles.__init__(self,theta,sigma)
-        self.sigma_lab = [np.cos(i/2)*j for i,j in zip(self.theta,self.sigma)]
 
-    def scale_it(self,value,angle):
-        index = self.theta.index(angle)
-        scale = value/self.sigma[index]
-        #Added slice overwrite to be a bit more careful with list
-        self.sigma[:] = [x*scale for x in self.sigma]
-        
+    def scale_it(self,value,angle,constant=None):
+        if constant:
+            self.sigma[:] = [x*value for x in self.sigma]
+        else:
+            index = self.find_angle(angle)
+            scale = value/self.sigma[index]
+            print 'Factor is: ', scale 
+            #Added slice overwrite to be a bit more careful with list
+            self.sigma[:] = [x*scale for x in self.sigma]
+
             
     #Picks out list index for a given angle.
     def find_angle(self,angle):
@@ -126,6 +132,7 @@ class lineobject(Angles):
         
         else:
             angle = raw_input('Angle not found try again! \n')
+            print self.theta
             self.find_angle(angle)
     
     #Resizes cross section and angle lists that are outside a given angle
@@ -134,52 +141,131 @@ class lineobject(Angles):
         return ([j for i,j in enumerate(self.theta) if i <= index],
                 [j for i,j in enumerate(self.sigma) if i <= index])
         
+    #function for angle 
+    def com_fun(self,x,a,b):
+        return (a - (np.sin(x)/(b+np.cos(x))))
+        
+    #function for cross section
+    def com_cross(self,x,a,b,c):
+        return (a - ((1+b**2+2*b*np.cos(c))**(3.0/2.0))/(abs(1+b*np.cos(c)))*x)
+        
+    #Transfers lab frame data to center of mass.
+    def make_com(self,massa,massb,massc,massd,Elab,Q,angle,sigma):
+        angle = angle*(np.pi)/(180.0)
+        rho = np.sqrt((massa*massc)/(massd*massb)*Elab/(Elab+Q))
+        tan_lab = np.tan(angle)
+        #root is from scipy optimize
+        sol = root(self.com_fun,0.0,(tan_lab,rho))
+        #now alter sigma
+        cs_sol = root(self.com_cross,0.0,(sigma,rho,sol.x[0]))
+        com_angle = sol.x[0]*(180.0/np.pi)
+        return (com_angle,cs_sol.x[0])
+        
+    #Now a function to shift the whole data set
+    def labtocom(self,ma,mb,mc,md,Elab,Q):
+        angle = self.theta
+        sigma = self.sigma
+        new_sigma = []
+        new_theta = []
+        for ang,sig in zip(angle,sigma):
+            ang,sig = self.make_com(ma,mb,mc,md,Elab,Q,ang,sig)
+            new_sigma.append(sig)
+            new_theta.append(ang)
+        angle[:] = new_theta
+        sigma[:] = new_sigma
                     
         
-#new subclass for experimental data. Expasions will include error bars and the like.
-class dataobject(Angles):
-     def __init__(self,theta,sigma,errx=None,erry=None):
-         Angles.__init__(self,theta,sigma)
-         self.errx = errx
-         self.erry = erry
-
-
-
-
+#new subclass for experimental data.
+class dataobject(lineobject):
+    def __init__(self,theta,sigma,errx=None,erry=None):
+        Angles.__init__(self,theta,sigma)
+    
+            
 #################################################
 ###########Classes For Analysis##################
 #################################################
 
+#Generic Class that tries to capture basic format of each fresco namelist
+class FrescoNamelist():
+    def __init__(self,start,stop,thefile=None):
+        self.start = start #Character or string for start of namelist
+        self.stop = stop  #Character for stop
+        self.data = []
+        if thefile:
+            self.get_data(thefile)
+         
 
-#generic class for changing inputs in fresco file. 
-#Note this only works for single elab input 
+    #Generator for the list useful for picking out namelists
+    #Start should be string to start the block and stop the string to stop
+    def fresco_gen(self,afile):
+        with open(afile,'r') as f:
+            for line in f:
+                if self.start in line:
+                    break
+            for line in f:
+                yield line
+                if self.stop in line:
+                    break
 
-class frescoinput():
+    #Use the iterator to add data based on namelist properties
+    def get_data(self,afile):
+        for line in self.fresco_gen(afile):
+            self.data.append(line)
+
+   
+#Building off of FrescoNamelist structure to actually represent a whole input file.
+class FrescoInput(FrescoNamelist):
 
     def __init__(self,thefile):
         
+        #Initializes all the common namelists into lists where each line is one string. 
+        self.parmeters = FrescoNamelist('NAMELIST','/',thefile).data
+        self.partitions = FrescoNamelist('/','&partition',thefile).data
+        self.potentials = FrescoNamelist('&partition','&pot',thefile).data
+        self.overlaps = FrescoNamelist('&pot','&overlap',thefile).data
+        self.couplings = FrescoNamelist('&overlap','&coupling',thefile).data
+
+        #Common types of potentials used in fresco
+        self.pot_types= {'type=0':'Coulomb',
+                         'type=1':'Volume',
+                         'type=2':'Surface',
+                         'type=3':'Proj Spin-Orbit',
+                         'type=4':'Target Spin-Orbit',
+                         }
+
+               
+        #Hold over from first implementation since I don't want to redo sensitivity
+        #routine right now.
         self.fresco = []
-        
         
         with open(thefile,'r') as f:
             for line in f:
                 self.fresco.append(line)
         
-        #self.pots = self.potentials()
+        #Dict of potentials
+        self.sorted_pots = self.find_pots()
 
-
+    #Simple write function that expects lines as strings in a list
     def write(self,filename,lines):
         with open(filename,'w') as f:
             for line in lines:
                 f.write(line)
 
-   #Changes a value for a given variable in a string            
+    #Find given variable in string. Splt_char can be used to split to return just value 
+    def find_value(self,var,string,splt_char=''):
+        non_split = (re.search(str(var)+'\S+',string).group()) 
+        if splt_char:
+            return non_split.split(splt_char)[1]
+        return non_split
+
+                
+    #Changes a value for a given variable in a string            
     def change_value(self,var,val,string):
-        old_string = re.search(str(var)+'\S+',string).group()
+        old_string = self.find_value(var,string)
         new_string = str(var)+'='+str(val)
         return (old_string,new_string)
-        
 
+    
     #This is really only set up for the parameters list so far.
     #Does appear to work with elab, so that is cool.
     def sensitivity(self,var,values):
@@ -199,58 +285,38 @@ class frescoinput():
                     line = line.replace(old_string,new_string)
                 new_lines.append(line)
             self.write(name,new_lines)
-            fe.filerun(name)
+            filerun(name)
             old_names = os.listdir('.')
             old_names[:] = [ele for ele in old_names if re.search('fort.2\d{2}',ele)]
             new_names = [name+'.'+(re.search('\d{3}',ele)).group() for ele in old_names]
             for i,j in zip(old_names,new_names):
                 os.rename(i,j)
         os.chdir('..')
-        
 
-    #dE has units of energy. This uses the energy shift to alter prexisting input files to produce a 
-    #yield curve
-    def yields(self,dE,n):
-       
-        while True:
-            try:
-                fint = int(raw_input("Which partition(Ex. 1,2,3):"))
-                break
-            except ValueError:
-                print "Try an integer fool."
-                    
-        new_lines = []
+    #This method sorts out all potentials    
+
+    def find_pots(self):
+        all_pots = {}
         
-        for line in self.fresco:
-                if 'elab' in line:
-                    old_string,new_string = self.change_value('elab',None,line)
-                    name = old_string + '_yield'
-                    temp = re.split('=',old_string)
-                    temp[-1] = str(float(temp[-1]) - (.5*float(dE)))
-                    new_string = temp[0]+'='+temp[-1]
-                    line = line.replace(old_string,new_string)
-                new_lines.append(line)
-        
-        
-        try:
-            os.mkdir(name)
-        except OSError: 
-            print 'You have probably already done this study...'
-        
-        #Sets up the yield curve plots doing the final rescaling of the data.
-        os.chdir(name)
-        name = name.replace(old_string,new_string)
-        self.write(name,new_lines)
-        fe.filerun(name)
-        if os.path.isfile('fort.20'+str(fint)):
-            fort = fr.readfile('fort.20'+str(fint))
-        else:
-            fortname = str(raw_input('Could not find cross section file enter alternative.'))
-            fort = fr.readfile(fortname)
-        data = fr.readfres200(fort)
-        #frescoplot(data,180,None,n)
-        
-        os.chdir('..')
-        
-        
-        
+        for ele in self.potentials:
+            #We check to see which partition it belongs to as if it is part of an
+            #exsisting one.
+            if 'kp' in ele:
+                #I make the assumtion that type is on the same line as kp
+                index = self.find_value('kp',ele,'=')
+                pot_type = self.pot_types[self.find_value('type',ele)]
+                #See if this is another potential partition or just another type
+                if index in all_pots:
+                    all_pots[index][pot_type] = []
+                    all_pots[index][pot_type].append(ele)
+                else:
+                    all_pots[index] = {}
+                    all_pots[index][pot_type] = []
+                    all_pots[index][pot_type].append(ele)
+                
+            #Scoop up the two line potentials    
+            elif '/' in ele:
+                all_pots[index][pot_type].append(ele)
+                
+                
+        return all_pots
