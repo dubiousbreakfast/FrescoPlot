@@ -2,6 +2,7 @@ from scipy.optimize import root
 import numpy as np
 import re
 import os
+from collections import OrderedDict
 
 ############################################
 ###############Functions####################
@@ -64,12 +65,12 @@ def read_cross(filename):
 
         # End of file create the lineobject ask user for state information 
         elif ele[0] == 'END':
-            jpi = raw_input("What is the spin parity of the state(Ex. 1.5+,1- etc.)?\n")
-            J=''
-            for s in re.findall('[^\+\-]',jpi):
-                J += s
-            par = re.findall('[\+\-]',jpi)[0]
-            graphline = lineobject(theta,sigma,E,J,par)
+            # jpi = raw_input("What is the spin parity of the state(Ex. 1.5+,1- etc.)?\n")
+            # J=''
+            # for s in re.findall('[^\+\-]',jpi):
+            #     J += s
+            # par = re.findall('[\+\-]',jpi)[0]
+            graphline = lineobject(theta,sigma,E,'0','+')
 
     return graphline
 
@@ -78,10 +79,21 @@ def read_data(filename):
     filelist = create_file_list(filename)
     theta = []
     sigma = []
+    errx = []
+    erry = []
     for ele in filelist:
         theta.append(float(ele[0]))                  
         sigma.append(float(ele[1]))
-    graphline = dataobject(theta,sigma)
+        try:
+            errx.append(float(ele[2]))
+        except IndexError:
+            pass
+        try:
+            erry.append(float(ele[3]))
+        except IndexError:
+            pass
+            
+    graphline = dataobject(theta,sigma,errx,erry)
     return graphline
 
 #Reads fort 17 file and returns a wavefunction class object to plot
@@ -177,9 +189,13 @@ class lineobject(Angles):
         
 #new subclass for experimental data.
 class dataobject(lineobject):
-    def __init__(self,theta,sigma,errx=None,erry=None):
+    def __init__(self,theta,sigma,errx,erry):
         Angles.__init__(self,theta,sigma)
-    
+        #We do not expect all data files to have errors
+        if errx:
+            self.errx = errx
+        if erry:
+            self.erry = erry
             
 #################################################
 ###########Classes For Analysis##################
@@ -187,20 +203,22 @@ class dataobject(lineobject):
 
 #Generic Class that tries to capture basic format of each fresco namelist
 class FrescoNamelist():
-    def __init__(self,start,stop,thefile=None):
+    def __init__(self,start,stop,thefile=None,ispart=False):
         self.start = start #Character or string for start of namelist
         self.stop = stop  #Character for stop
         self.data = []
+        self.ispart = ispart
         if thefile:
             self.get_data(thefile)
          
 
-    #Generator for the list useful for picking out namelists
-    #Start should be string to start the block and stop the string to stop
-    def fresco_gen(self,afile):
+    #Iterator for the list useful for picking out namelists
+    def fresco_iter(self,afile):
         with open(afile,'r') as f:
+            #Since the file is open within the with statement
+            #when the break happens the line position is maintained.
             for line in f:
-                if self.start in line:
+                if self.start in line: 
                     break
             for line in f:
                 yield line
@@ -209,17 +227,17 @@ class FrescoNamelist():
 
     #Use the iterator to add data based on namelist properties
     def get_data(self,afile):
-        for line in self.fresco_gen(afile):
+        for line in self.fresco_iter(afile):
             self.data.append(line)
 
    
 #Building off of FrescoNamelist structure to actually represent a whole input file.
-class FrescoInput(FrescoNamelist):
+class FrescoInput():
 
     def __init__(self,thefile):
         
         #Initializes all the common namelists into lists where each line is one string. 
-        self.parmeters = FrescoNamelist('NAMELIST','/',thefile).data
+        self.parameters = FrescoNamelist('','/',thefile,).data #Empty string is always true and iteration cuts off first line 
         self.partitions = FrescoNamelist('/','&partition',thefile).data
         self.potentials = FrescoNamelist('&partition','&pot',thefile).data
         self.overlaps = FrescoNamelist('&pot','&overlap',thefile).data
@@ -245,10 +263,10 @@ class FrescoInput(FrescoNamelist):
         #Dict of potentials
         self.sorted_pots = self.find_pots()
 
-    #Simple write function that expects lines as strings in a list
-    def write(self,filename,lines):
+    #Simple write function that writes a newinput file
+    def write(self,filename):
         with open(filename,'w') as f:
-            for line in lines:
+            for line in self.fresco:
                 f.write(line)
 
     #Find given variable in string. Splt_char can be used to split to return just value 
@@ -260,11 +278,12 @@ class FrescoInput(FrescoNamelist):
 
                 
     #Changes a value for a given variable in a string            
-    def change_value(self,var,val,string):
-        old_string = self.find_value(var,string)
+    def change_value(self,var,val,s):
+        old_string = self.find_value(var,s)
         new_string = str(var)+'='+str(val)
-        return (old_string,new_string)
-
+        s = s.replace(old_string,new_string)
+        return s
+    
     
     #This is really only set up for the parameters list so far.
     #Does appear to work with elab, so that is cool.
@@ -281,8 +300,7 @@ class FrescoInput(FrescoNamelist):
             name = str(var)+'='+str(ele)
             for line in self.fresco:
                 if str(var) in line:
-                    old_string,new_string = self.change_value(var,ele,line)
-                    line = line.replace(old_string,new_string)
+                    line = self.change_value(var,ele,line)
                 new_lines.append(line)
             self.write(name,new_lines)
             filerun(name)
@@ -294,9 +312,8 @@ class FrescoInput(FrescoNamelist):
         os.chdir('..')
 
     #This method sorts out all potentials    
-
     def find_pots(self):
-        all_pots = {}
+        all_pots = OrderedDict() #Keeps entries in order for looping over later
         
         for ele in self.potentials:
             #We check to see which partition it belongs to as if it is part of an
@@ -310,13 +327,43 @@ class FrescoInput(FrescoNamelist):
                     all_pots[index][pot_type] = []
                     all_pots[index][pot_type].append(ele)
                 else:
-                    all_pots[index] = {}
+                    all_pots[index] = OrderedDict()
                     all_pots[index][pot_type] = []
                     all_pots[index][pot_type].append(ele)
                 
             #Scoop up the two line potentials    
             elif '/' in ele:
-                all_pots[index][pot_type].append(ele)
-                
+                all_pots[index][pot_type].append(ele)        
                 
         return all_pots
+
+
+    #Updates the potential block so that we can make a new input file
+    def update_pot(self):
+        #pretty jank way to do this. Making up for orignal newline that is omitted in sorting process.
+        new_potentials = [' \n']
+        for key,item in self.sorted_pots.iteritems():
+            for in_key,in_item in item.iteritems():
+                for ele in in_item:
+                    new_potentials.append(ele)
+        self.potentials[:] = new_potentials
+                       
+            
+            
+    
+    #To be used for searchs later. Destructive to orginal value. 
+    def change_pot(self,pot,term,var,val):
+        for index,ele in enumerate(self.sorted_pots[pot][term]):
+            if var in ele:
+                ele = self.change_value(var,val,ele)
+                self.sorted_pots[pot][term][index] = ele 
+
+
+    #Reassembles all namelists into the singular self.fresco list
+    def update_all(self):
+        #First make sure all namelists are current.
+        self.update_pot()
+        #Add the others when the time comes.
+        #Now join the lists. 
+        new_fresco = [self.fresco[0]]+self.parameters+self.partitions+self.potentials+self.overlaps+self.couplings #fresco[0] is so that the first line is still there 
+        self.fresco[:] = new_fresco
