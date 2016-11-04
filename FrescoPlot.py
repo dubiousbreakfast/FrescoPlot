@@ -3,24 +3,33 @@ import matplotlib.pyplot as plt
 import numpy
 import os
 import seaborn as sbs
-
+import FrescoClasses as fc
 
 
 
 class CrossSectionPlot():
 
-
-    def __init__(self,lines,data=None):
-        #List that contains lineobjects
-        self.lines = lines
+    def __init__(self,files,data=None,q_name=None):
+        self.lines = []
+        #Create the list of lineobjects from file names given. If not given iterable it is assumed to be a single file.
+        #Can also pass list of lineobjects
+        if isinstance(files,tuple):
+            for ele in files:
+                self.lines.append(fc.read_cross(ele))
+        elif isinstance(files,str):
+            self.lines.append(fc.read_cross(files))
+        else:
+            for ele in files:
+                self.lines.append(ele)
+            
         self.data = data
-
 
         #Initialize the plot
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
 
-    #Reads in data from a lineobject    
+        
+    #Reads in data from a lineobject and scales the values to a point    
     def scale(self,factor=None):
         if factor:
             for line in self.lines:
@@ -42,10 +51,11 @@ class CrossSectionPlot():
     def plot(self,angle=None):
         wid = 1.3
         if self.data:
-            # if self.data.yerr and self.data.xerr:
-            #     self.ax.errorbar(self.data.theta,self.data.sigma,yerr=self.data.yerr,xerr=self.data.xerr,lw=wid)
-            # else:
-            self.ax.plot(self.data.theta,self.data.sigma,'ro')
+            if self.data.erry or self.data.errx:
+                self.ax.errorbar(self.data.theta,self.data.sigma,yerr=self.data.erry,xerr=self.data.errx,lw=wid,fmt='o')
+                
+            else:
+                self.ax.plot(self.data.theta,self.data.sigma,'ro')
         for line in self.lines:
             if angle:
                 x,y = line.angle_range(float(angle))
@@ -61,84 +71,25 @@ class CrossSectionPlot():
 
         self.fig.show()
 
+    #Quick plots are intended for one off plots just to check general features of a cross section.
+    #Options are for auto saving figures for sensitivity studies.
+    def quick_plot(self,q_name):
+        x,y = self.lines.theta,self.lines.sigma
+        self.ax.plot(x,y)
+        self.ax.set_xlabel(r'$\theta$',fontsize=20)
+        self.ax.tick_params(axis='x', labelsize=12)    
+        self.ax.set_ylabel(r'$\sigma(mb)$',fontsize = 20)
+        self.ax.tick_params(axis='y', labelsize=12)
+        self.ax.set_yscale('log')
+        if q_name:
+            self.fig.savefig(q_name+'.png',format='png') #Just default to png, since is just for quick check
+        else:
+            self.fig.show()
 
-
-#function to quickly plot a fort.20* file
-def simple_plot(filename):
-    line = fc.read_cross(filename)
-    pass
-
-
-
-
-
-
-     
-
-
-# #Set up the plots
-# def now_plot(notaplot,angle=None,data=None,scale=None):
-#     aplot = plt.subplot()
-#     if scale:
-#         notaplot.scale_it(scale,1.0)
-#     #Everything to do with data so scaling+plotting right now
-#     if data:
-#         scalebool = raw_input("Scale to data point y or n? \n")
-#         if scalebool == 'y':
-#             for i,j in enumerate(data.theta):
-#                 print '{0} {1}'.format(j,data.sigma[i])
-#             scale_angle = raw_input("Scale angle(Ex. 1, 1.5, etc.)?")
-#             scale_value = float(raw_input("Scale value?"))
-#             notaplot.scale_it(scale_value,scale_angle)
-#         aplot.plot(data.theta,data.sigma,'g^')
-#     if angle:
-#         x,y = notaplot.angle_range(data)
-#     else:
-#         x,y = notaplot.angle_range(float(raw_input("Stop plotting at which angle? \n")))
-#     aplot.plot(x,y)
-#     #Finish setting up plots
-#     aplot.set_title(str(notaplot.E)+' Mev $J^\pi = $'+notaplot.J+notaplot.par)    
-#     aplot.set_xlabel(r'$\theta$',fontsize = 20)
-#     aplot.set_ylabel(r'$\sigma(mb)$',fontsize = 20)
-#     aplot.tick_params(axis='x', labelsize=10)    
-#     aplot.tick_params(axis='y', labelsize=10)
-#     aplot.set_yscale('log')
-#     plt.savefig(notaplot.J+notaplot.par+' plot.pdf')
-#     plt.draw()
-#     plt.clf()
-
-
-    
-
-# # read in files
-# # Still have to enter data in same order as graphs right now
-# all_files = ff.getfiles('fort.200')
-# all_data = ff.getfiles('data')
-# graphs = []
-# data_graphs = []
-
-# #set up graph objects
-# graphs[:] = [fr.readfres200(fr.readfile(x)) for x in all_files]
-# data_graphs[:] = [fr.read_data(fr.readfile(x)) for x in all_data]
-
-
-
-#Now plot them all
-# for i,j in enumerate(graphs):
-#     try:
-#         oneplot = now_plot(j,None,data_graphs[i])
-#     except IndexError:
-#         oneplot = now_plot(j)
-
-    
-
-
-# #for i in range(len(graphs)):
-#     if i <= len(data_graphs):
-#         oneplot = now_plot(graphs[i],data_graphs[i])
-#     else:
-#         oneplot = now_plot(graphs[i])
-
+    #Multiple Plots based on the seaborn FacetGrid
+    def multi_plot(self):
+        pass
+        
 
 
 

@@ -143,7 +143,7 @@ class lineobject(Angles):
             return self.theta.index(angle) 
         
         else:
-            angle = raw_input('Angle not found try again! \n')
+            angle = float(raw_input('Angle not found try again! \n'))
             print self.theta
             self.find_angle(angle)
     
@@ -159,7 +159,7 @@ class lineobject(Angles):
         
     #function for cross section
     def com_cross(self,x,a,b,c):
-        return (a - ((1+b**2+2*b*np.cos(c))**(3.0/2.0))/(abs(1+b*np.cos(c)))*x)
+        return (a - ((1+b**2+2*b*np.cos(c))**(3.0/2.0))/(np.abs(1+b*np.cos(c)))*x)
         
     #Transfers lab frame data to center of mass.
     def make_com(self,massa,massb,massc,massd,Elab,Q,angle,sigma):
@@ -236,13 +236,16 @@ class FrescoInput():
 
     def __init__(self,thefile):
         
-        #Initializes all the common namelists into lists where each line is one string. 
+        #Initializes all the common namelists into lists where each line is one string.
+        self.title = [] #title line that is excluded due to funkyness on the namelist read.
         self.parameters = FrescoNamelist('','/',thefile,).data #Empty string is always true and iteration cuts off first line 
         self.partitions = FrescoNamelist('/','&partition',thefile).data
         self.potentials = FrescoNamelist('&partition','&pot',thefile).data
         self.overlaps = FrescoNamelist('&pot','&overlap',thefile).data
         self.couplings = FrescoNamelist('&overlap','&coupling',thefile).data
-
+        
+        
+        self.fresco = [] #file as a list
         #Common types of potentials used in fresco
         self.pot_types= {'type=0':'Coulomb',
                          'type=1':'Volume',
@@ -250,25 +253,22 @@ class FrescoInput():
                          'type=3':'Proj Spin-Orbit',
                          'type=4':'Target Spin-Orbit',
                          }
-
-               
-        #Hold over from first implementation since I don't want to redo sensitivity
-        #routine right now.
-        self.fresco = []
-        
-        with open(thefile,'r') as f:
-            for line in f:
-                self.fresco.append(line)
-        
+    
         #Dict of potentials
         self.sorted_pots = self.find_pots()
 
-    #Simple write function that writes a newinput file
-    def write(self,filename):
-        with open(filename,'w') as f:
+        #get the title line
+        with open(thefile,'r') as f:
+            for line in f:
+                self.fresco.append(line)
+
+        self.title = [self.fresco[0]] #title line that is excluded due to funkyness on the namelist read.
+        
+    def write(self,name):
+        with open(str(name),'w') as f:
             for line in self.fresco:
                 f.write(line)
-
+        
     #Find given variable in string. Splt_char can be used to split to return just value 
     def find_value(self,var,string,splt_char=''):
         non_split = (re.search(str(var)+'\S+',string).group()) 
@@ -285,31 +285,32 @@ class FrescoInput():
         return s
     
     
-    #This is really only set up for the parameters list so far.
-    #Does appear to work with elab, so that is cool.
+    #Sensitivty study for parameters namelist
     def sensitivity(self,var,values):
         try:
-            os.mkdir(str(var)+'_sensitivity')
+            os.mkdir(str(var)+'_sensitivity') #see if the sensitivity directory already exists
         except OSError: 
             print 'You have probably already done this study...'
             
-        os.chdir(str(var)+'_sensitivity')
+        os.chdir(str(var)+'_sensitivity') #switch into created sensitivity directory
         
         for ele in values:
-            new_lines = []
-            name = str(var)+'='+str(ele)
-            for line in self.fresco:
+            new_lines = [] #what will become the updated values
+            name = str(var)+'='+str(ele) #name we will rename everything
+            for line in self.parameters:
                 if str(var) in line:
                     line = self.change_value(var,ele,line)
                 new_lines.append(line)
-            self.write(name,new_lines)
-            filerun(name)
-            old_names = os.listdir('.')
-            old_names[:] = [ele for ele in old_names if re.search('fort.2\d{2}',ele)]
-            new_names = [name+'.'+(re.search('\d{3}',ele)).group() for ele in old_names]
+            self.parameters[:] = new_lines #update parameters namelist
+            self.update_all() #create the new file list
+            self.write(name) #create the input file
+            filerun(name) #run fresco
+            old_names = os.listdir('.') 
+            old_names[:] = [ele for ele in old_names if re.search('fort.2\d{2}',ele)] #find the cross section files fort.200s 
+            new_names = [name+'.'+(re.search('\d{3}',ele)).group() for ele in old_names] #name is new parameter value + .200s
             for i,j in zip(old_names,new_names):
-                os.rename(i,j)
-        os.chdir('..')
+                os.rename(i,j) #change all the names
+        os.chdir('..') #go to original directory
 
     #This method sorts out all potentials    
     def find_pots(self):
@@ -365,5 +366,5 @@ class FrescoInput():
         self.update_pot()
         #Add the others when the time comes.
         #Now join the lists. 
-        new_fresco = [self.fresco[0]]+self.parameters+self.partitions+self.potentials+self.overlaps+self.couplings #fresco[0] is so that the first line is still there 
+        new_fresco = self.title+self.parameters+self.partitions+self.potentials+self.overlaps+self.couplings
         self.fresco[:] = new_fresco
