@@ -100,8 +100,12 @@ def read_data(filename):
 #def read_wavefunction(filename):
 
 
-
-
+#do a sum of two cross sections that have the same angles
+def cs_sum(cs1,cs2):
+    first = np.asarray(cs1.sigma)
+    second = np.asarray(cs2.sigma)    
+    return lineobject(cs1.theta,(first+second).tolist(),cs1.E,cs1.J,cs1.par) 
+    
 
 
 
@@ -172,31 +176,32 @@ class lineobject(Angles):
         cs_sol = root(self.com_cross,0.0,(sigma,rho,sol.x[0]))
         com_angle = sol.x[0]*(180.0/np.pi)
         return (com_angle,cs_sol.x[0])
+
+    # def make_lab(self,massa,massb,massc,massd,Elab,Q,angle,sigma):
         
-    #Now a function to shift the whole data set
-    def labtocom(self,ma,mb,mc,md,Elab,Q):
-        angle = self.theta
-        sigma = self.sigma
-        new_sigma = []
-        new_theta = []
-        for ang,sig in zip(angle,sigma):
-            ang,sig = self.make_com(ma,mb,mc,md,Elab,Q,ang,sig)
-            new_sigma.append(sig)
-            new_theta.append(ang)
-        angle[:] = new_theta
-        sigma[:] = new_sigma
-                    
+    
+    # #Now a function to shift the whole data set
+    # def transform(self,,ma,mb,mc,md,Elab,Q):
+    #     angle = self.theta
+    #     sigma = self.sigma
+    #     new_sigma = []
+    #     new_theta = []
+    #     for ang,sig in zip(angle,sigma):
+    #         ang,sig = self.make_com(ma,mb,mc,md,Elab,Q,ang,sig)
+    #         new_sigma.append(sig)
+    #         new_theta.append(ang)
+    #     angle[:] = new_theta
+    #     sigma[:] = new_sigma
+                 
         
 #new subclass for experimental data.
 class dataobject(lineobject):
     def __init__(self,theta,sigma,errx,erry):
         Angles.__init__(self,theta,sigma)
         #We do not expect all data files to have errors
-        if errx:
-            self.errx = errx
-        if erry:
-            self.erry = erry
-            
+        self.errx = errx
+        self.erry = erry
+
 #################################################
 ###########Classes For Analysis##################
 #################################################
@@ -318,11 +323,15 @@ class FrescoInput():
         
         for ele in self.potentials:
             #We check to see which partition it belongs to as if it is part of an
-            #exsisting one.
+            #existing one.
             if 'kp' in ele:
                 #I make the assumtion that type is on the same line as kp
-                index = self.find_value('kp',ele,'=')
-                pot_type = self.pot_types[self.find_value('type',ele)]
+                index = self.find_value('kp',ele,splt_char='=')
+                #type does not have to be specified, and if it is not assumed to be a coulomb potential
+                if 'type' in ele:
+                    pot_type = self.pot_types[self.find_value('type',ele)]
+                else:
+                    pot_type = 'Coulomb'
                 #See if this is another potential partition or just another type
                 if index in all_pots:
                     all_pots[index][pot_type] = []
@@ -343,12 +352,15 @@ class FrescoInput():
     def update_pot(self):
         #pretty jank way to do this. Making up for orignal newline that is omitted in sorting process.
         new_potentials = [' \n']
-        for key,item in self.sorted_pots.iteritems():
-            for in_key,in_item in item.iteritems():
-                for ele in in_item:
-                    new_potentials.append(ele)
-        self.potentials[:] = new_potentials
-                       
+        for key,item in self.sorted_pots.iteritems(): #each partitions associated potentials
+            for in_key,in_item in item.iteritems(): #each type of potential for a given partition
+                for ele in in_item: #actual namelist items
+                    if '&pot' in ele: #this terminates the namelist so it must be last line
+                        last_line = ele
+                    else:
+                        new_potentials.append(ele)
+        self.potentials[:] = new_potentials 
+        self.potentials.append(last_line) 
             
             
     

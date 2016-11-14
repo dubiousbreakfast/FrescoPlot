@@ -6,6 +6,7 @@ import seaborn as sbs
 import FrescoClasses as fc
 
 
+sbs.set_context('poster')
 
 class CrossSectionPlot():
 
@@ -27,7 +28,6 @@ class CrossSectionPlot():
         #Initialize the plot
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111)
-
         
     #Reads in data from a lineobject and scales the values to a point    
     def scale(self,factor=None):
@@ -63,23 +63,23 @@ class CrossSectionPlot():
                 x,y = line.theta,line.sigma
             self.ax.plot(x,y)
 
-        self.ax.set_xlabel(r'$\theta$',fontsize = 20)
-        self.ax.set_ylabel(r'$\sigma(mb)$',fontsize = 20)
-        self.ax.tick_params(axis='x', labelsize=10)    
-        self.ax.tick_params(axis='y', labelsize=10)
+        self.ax.set_xlabel(r'$\theta$',fontsize = 25)
+        self.ax.set_ylabel(r'$\sigma(mb)$',fontsize = 25)
+        self.ax.tick_params(axis='x', labelsize=15)    
+        self.ax.tick_params(axis='y', labelsize=15)
         self.ax.set_yscale('log')
-
         self.fig.show()
 
     #Quick plots are intended for one off plots just to check general features of a cross section.
     #Options are for auto saving figures for sensitivity studies.
     def quick_plot(self,q_name):
-        x,y = self.lines.theta,self.lines.sigma
+        for line in self.lines:
+            x,y = line.theta,line.sigma
         self.ax.plot(x,y)
-        self.ax.set_xlabel(r'$\theta$',fontsize=20)
-        self.ax.tick_params(axis='x', labelsize=12)    
-        self.ax.set_ylabel(r'$\sigma(mb)$',fontsize = 20)
-        self.ax.tick_params(axis='y', labelsize=12)
+        self.ax.set_xlabel(r'$\theta$',fontsize=25)
+        self.ax.tick_params(axis='x', labelsize=15)    
+        self.ax.set_ylabel(r'$\sigma(mb)$',fontsize = 25)
+        self.ax.tick_params(axis='y', labelsize=15)
         self.ax.set_yscale('log')
         if q_name:
             self.fig.savefig(q_name+'.png',format='png') #Just default to png, since is just for quick check
