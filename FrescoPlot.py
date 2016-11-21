@@ -51,7 +51,7 @@ class CrossSectionPlot():
     def plot(self,angle=None):
         wid = 1.3
         if self.data:
-            if self.data.erry or self.data.errx:
+            if self.data.erry.any() or self.data.errx.any():
                 self.ax.errorbar(self.data.theta,self.data.sigma,yerr=self.data.erry,xerr=self.data.errx,lw=wid,fmt='o')
                 
             else:

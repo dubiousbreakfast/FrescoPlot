@@ -1,4 +1,4 @@
-from scipy.optimize import root
+import scipy.optimize as optimize 
 import numpy as np
 import re
 import os
@@ -45,7 +45,7 @@ def getfile():
                 print(temp+" ain't no file!\n")
     return afile
         
-#Reads fort.200 files returns lineobject    
+#Reads fort.200 files returns LineObject    
 def read_cross(filename):
     filelist = create_file_list(filename)
     #Initialize lists for angular information
@@ -63,18 +63,18 @@ def read_cross(filename):
                 energy = re.findall('[0-9.0]+',ele[6])
                 E = float(energy[0])
 
-        # End of file create the lineobject ask user for state information 
+        # End of file create the LineObject ask user for state information 
         elif ele[0] == 'END':
             # jpi = raw_input("What is the spin parity of the state(Ex. 1.5+,1- etc.)?\n")
             # J=''
             # for s in re.findall('[^\+\-]',jpi):
             #     J += s
             # par = re.findall('[\+\-]',jpi)[0]
-            graphline = lineobject(theta,sigma,E,'0','+')
+            graphline = LineObject(theta,sigma,E,'0','+')
 
     return graphline
 
-#Reads two col. data files returns dataobject
+#Reads two col. data files returns DataObject
 def read_data(filename):
     filelist = create_file_list(filename)
     theta = []
@@ -93,7 +93,7 @@ def read_data(filename):
         except IndexError:
             pass
             
-    graphline = dataobject(theta,sigma,errx,erry)
+    graphline = DataObject(theta,sigma,errx,erry)
     return graphline
 
 #Reads fort 17 file and returns a wavefunction class object to plot
@@ -102,10 +102,10 @@ def read_data(filename):
 
 #do a sum of two cross sections that have the same angles
 def cs_sum(cs1,cs2):
-    first = np.asarray(cs1.sigma)
-    second = np.asarray(cs2.sigma)    
-    return lineobject(cs1.theta,(first+second).tolist(),cs1.E,cs1.J,cs1.par) 
-    
+    if not cs1.theta == cs2.theta:
+        print "These cross sections don't have the same angles!"
+    else:
+        return LineObject(cs1.theta,cs1.sigma+cs2.sigma,cs1.E,cs1.J,cs1.par)
 
 
 
@@ -118,12 +118,12 @@ def cs_sum(cs1,cs2):
 #new generic class for angular distrubutions
 class Angles():
     def __init__(self,theta,sigma):
-        self.theta = theta
-        self.sigma = sigma
+        self.theta = np.asarray(theta)
+        self.sigma = np.asarray(sigma)
 
 
 #This is the tenenative class for graphs. It includes scaling for elastic fits.
-class lineobject(Angles):
+class LineObject(Angles):
     def __init__ (self,theta,sigma,E,J,par):
         self.E = E
         self.J = J
@@ -132,76 +132,79 @@ class lineobject(Angles):
 
     def scale_it(self,value,angle,constant=None):
         if constant:
-            self.sigma[:] = [x*value for x in self.sigma]
+            self.sigma = constant*self.sigma
         else:
             index = self.find_angle(angle)
             scale = value/self.sigma[index]
             print 'Factor is: ', scale 
             #Added slice overwrite to be a bit more careful with list
-            self.sigma[:] = [x*scale for x in self.sigma]
+            self.sigma = scale*self.sigma
 
             
     #Picks out list index for a given angle.
     def find_angle(self,angle):
+        angle = float(angle)
         if angle in self.theta:
-            return self.theta.index(angle) 
+            return np.argwhere(self.theta == angle) 
         
         else:
             angle = float(raw_input('Angle not found try again! \n'))
             print self.theta
             self.find_angle(angle)
-    
-    #Resizes cross section and angle lists that are outside a given angle
-    def angle_range(self,ran):
-        index = self.find_angle(ran)
-        return ([j for i,j in enumerate(self.theta) if i <= index],
-                [j for i,j in enumerate(self.sigma) if i <= index])
         
-    #function for angle 
+    #function for angle ref Ian Thompsons's book written in a form for root finding since it is transendental
     def com_fun(self,x,a,b):
-        return (a - (np.sin(x)/(b+np.cos(x))))
+        return (np.tan(a) - (np.sin(x)/(b+np.cos(x))))
         
     #function for cross section
-    def com_cross(self,x,a,b,c):
-        return (a - ((1+b**2+2*b*np.cos(c))**(3.0/2.0))/(np.abs(1+b*np.cos(c)))*x)
-        
-    #Transfers lab frame data to center of mass.
-    def make_com(self,massa,massb,massc,massd,Elab,Q,angle,sigma):
-        angle = angle*(np.pi)/(180.0)
-        rho = np.sqrt((massa*massc)/(massd*massb)*Elab/(Elab+Q))
-        tan_lab = np.tan(angle)
-        #root is from scipy optimize
-        sol = root(self.com_fun,0.0,(tan_lab,rho))
-        #now alter sigma
-        cs_sol = root(self.com_cross,0.0,(sigma,rho,sol.x[0]))
-        com_angle = sol.x[0]*(180.0/np.pi)
-        return (com_angle,cs_sol.x[0])
+    def cross_factor(self,com_angle,rho):
+        return ((1+rho**2+2*rho*np.cos(com_angle))**(3.0/2.0))/(np.abs(1+rho*np.cos(com_angle)))
 
-    # def make_lab(self,massa,massb,massc,massd,Elab,Q,angle,sigma):
-        
+    #lab angle transformation
+    def lab_fun(self,a,b):
+        return (np.arctan((np.sin(a)/(b+np.cos(a)))))
+
     
-    # #Now a function to shift the whole data set
-    # def transform(self,,ma,mb,mc,md,Elab,Q):
-    #     angle = self.theta
-    #     sigma = self.sigma
-    #     new_sigma = []
-    #     new_theta = []
-    #     for ang,sig in zip(angle,sigma):
-    #         ang,sig = self.make_com(ma,mb,mc,md,Elab,Q,ang,sig)
-    #         new_sigma.append(sig)
-    #         new_theta.append(ang)
-    #     angle[:] = new_theta
-    #     sigma[:] = new_sigma
-                 
+    #Transfers lab frame data to center of mass.
+    def to_com(self,massa,massb,massc,massd,Elab,Q):
+        angle = self.theta*(np.pi/180.0) #to radians 
+        rho = np.sqrt((massa*massc)/(massd*massb)*Elab/(Elab+Q))
+        #root is from scipy optimize
+        sol = optimize.fsolve(self.com_fun,angle,(angle,rho)) #solve transformation for angles. 
+        #now alter sigma
+        cs_scale = self.cross_factor(sol,rho) #solve transformation for cross section
+        com_angle = sol*(180.0/np.pi) #to degrees
+        self.theta = com_angle
+        self.sigma = cs_scale*self.sigma
+
+    #from com to lab
+    def to_lab(self,massa,massb,massc,massd,Elab,Q):
+        angle = self.theta*(np.pi/180.0)
+        rho = np.sqrt((massa*massc)/(massd*massb)*Elab/(Elab+Q))
+        lab_scale = (self.cross_factor(angle,rho))**(-1.0) #uses com angles for scale
+        lab_angle = self.lab_fun(angle,rho)
+        self.theta = lab_angle*(180.0/np.pi)
+        self.sigma = lab_scale*self.sigma
         
 #new subclass for experimental data.
-class dataobject(lineobject):
+class DataObject(LineObject):
     def __init__(self,theta,sigma,errx,erry):
         Angles.__init__(self,theta,sigma)
         #We do not expect all data files to have errors
-        self.errx = errx
-        self.erry = erry
+        self.errx = np.asarray(errx)
+        self.erry = np.asarray(erry)
 
+    ### def to_lab(self,massa,massb,massc,massd,Elab,Q):
+    ###     LineObject.to_lab(self,massa,massb,massc,massd,Elab,Q)
+    ###     rho = np.sqrt((massa*massc)/(massd*massb)*Elab/(Elab+Q))
+    ###     if self.errx.any(): #x errors require only angle transformations
+    ###         angle = self.errx*(np.pi/180.0)
+    ###         lab_ang_errors = self.lab_fun(angle,rho)
+    ###         self.errx = lab_ang_errors*(np.pi/180.0)
+    ###     if self.erry.any():
+    ###         lab_cross_errors = self.erry
+            
+            
 #################################################
 ###########Classes For Analysis##################
 #################################################
