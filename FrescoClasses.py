@@ -151,11 +151,16 @@ class LineObject(Angles):
             angle = float(raw_input('Angle not found try again! \n'))
             print self.theta
             self.find_angle(angle)
+
+    #resize angles
+    def angle_range(self,angle):
+        index = self.find_angle(angle)+1 #slicing is exclusive, so we need to add one
+        return (self.theta[0:index],self.sigma[0:index])
         
     #function for angle ref Ian Thompsons's book written in a form for root finding since it is transendental
     def com_fun(self,x,a,b):
         return (np.tan(a) - (np.sin(x)/(b+np.cos(x))))
-        
+
     #function for cross section
     def cross_factor(self,com_angle,rho):
         return ((1+rho**2+2*rho*np.cos(com_angle))**(3.0/2.0))/(np.abs(1+rho*np.cos(com_angle)))
@@ -165,15 +170,22 @@ class LineObject(Angles):
         return (np.arctan((np.sin(a)/(b+np.cos(a)))))
 
     
+    #function to make angles positive
+    def make_positive(self,angle):
+        np.putmask(angle,angle<0.0,angle+180.0) #putmask is destructive
+        print angle
+        return angle
+    
     #Transfers lab frame data to center of mass.
+    #Freaks out at 90 degrees as one might expect
     def to_com(self,massa,massb,massc,massd,Elab,Q):
         angle = self.theta*(np.pi/180.0) #to radians 
         rho = np.sqrt((massa*massc)/(massd*massb)*Elab/(Elab+Q))
-        #root is from scipy optimize
-        sol = optimize.fsolve(self.com_fun,angle,(angle,rho)) #solve transformation for angles. 
+        sol = optimize.fsolve(self.com_fun,angle,args=(angle,rho))
         #now alter sigma
         cs_scale = self.cross_factor(sol,rho) #solve transformation for cross section
         com_angle = sol*(180.0/np.pi) #to degrees
+        com_angle = self.make_positive(com_angle)
         self.theta = com_angle
         self.sigma = cs_scale*self.sigma
 
@@ -182,8 +194,9 @@ class LineObject(Angles):
         angle = self.theta*(np.pi/180.0)
         rho = np.sqrt((massa*massc)/(massd*massb)*Elab/(Elab+Q))
         lab_scale = (self.cross_factor(angle,rho))**(-1.0) #uses com angles for scale
-        lab_angle = self.lab_fun(angle,rho)
-        self.theta = lab_angle*(180.0/np.pi)
+        lab_angle = self.lab_fun(angle,rho)*(180.0/np.pi)
+        lab_angle = self.make_positive(lab_angle)
+        self.theta = lab_angle
         self.sigma = lab_scale*self.sigma
         
 #new subclass for experimental data.
